@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Ashoka Munasinghe. MIT License, see LICENSE.
+// SPDX-License-Identifier: MIT
+
 #include <Wire.h>
 #include <SSD1306Ascii.h>
 #include <SSD1306AsciiWire.h>

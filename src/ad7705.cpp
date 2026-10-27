@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Ashoka Munasinghe. MIT License, see LICENSE.
+// SPDX-License-Identifier: MIT
+
 #include "ad7705.h"
 #include <SPI.h>
 

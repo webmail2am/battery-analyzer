@@ -1,4 +1,6 @@
 <!doctype html>
+<!-- Battery Analyzer. Copyright (c) 2026 Ashoka Munasinghe. MIT License.
+     SPDX-License-Identifier: MIT. https://github.com/webmail2am/battery-analyzer -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -260,6 +262,7 @@ dialog#help::backdrop { background: rgba(0, 0, 0, .45); }
     </div>
   </section>
 </main>
+<footer class="hint" style="text-align:center;padding:0 16px 18px">Battery Analyzer · © 2026 Ashoka Munasinghe · MIT License · <a href="https://github.com/webmail2am/battery-analyzer" target="_blank" rel="noopener" style="color:var(--accent)">github.com/webmail2am/battery-analyzer</a></footer>
 <div id="toast"></div>
 
 <dialog id="help">
@@ -269,7 +272,7 @@ dialog#help::backdrop { background: rgba(0, 0, 0, .45); }
       <a href="#h-start">Quick start</a><a href="#h-device">The analyzer</a><a href="#h-buttons">Buttons</a>
       <a href="#h-modes">Test modes</a><a href="#h-output">OUTPUT mode</a><a href="#h-app">This software</a><a href="#h-settings">Battery settings</a><a href="#h-flash">Firmware update</a>
       <a href="#h-cal">Calibration</a><a href="#h-trouble">Troubleshooting</a><a href="#h-safety">Safety</a>
-      <a href="#h-proto">Serial protocol</a>
+      <a href="#h-proto">Serial protocol</a><a href="#h-about">About</a>
     </nav>
 
     <h3 id="h-start">Quick start</h3>
@@ -501,6 +504,12 @@ dialog#help::backdrop { background: rgba(0, 0, 0, .45); }
       <tr><td><code>g</code></td><td>print settings: <code>S,chem,cutoff_mV,min_mV,max_mV,can_charge</code></td></tr>
       <tr><td><code>?</code></td><td>help</td></tr>
     </table>
+
+    <h3 id="h-about">About</h3>
+    <p>Battery Analyzer: firmware, PC software, schematic and documentation.<br>
+      © 2026 Ashoka Munasinghe. Released under the MIT License: you may use, copy, modify and share it, including commercially,
+      as long as this copyright notice and the license text stay with it. Provided "as is", without warranty.<br>
+      Source code and updates: <a href="https://github.com/webmail2am/battery-analyzer" target="_blank" rel="noopener">github.com/webmail2am/battery-analyzer</a></p>
   </div>
 </dialog>
 
@@ -1186,7 +1195,7 @@ function exportReport() {
     "@media print{h2{break-before:auto}img{break-inside:avoid}}</style></head><body>" +
     "<h1>Battery test report</h1><p class='sub'>" + esc(r.type + " test, finished " + new Date(r.when).toLocaleString()) + "</p>" +
     "<table>" + rows + "</table>" + imgs +
-    "<p class='sub' style='margin-top:24px'>Battery Analyzer · " + r.samples.length + " readings</p></body></html>";
+    "<p class='sub' style='margin-top:24px'>Battery Analyzer · " + r.samples.length + " readings · © 2026 Ashoka Munasinghe, MIT License</p></body></html>";
   download("battery-report-" + r.type.toLowerCase().replace(/\W+/g, "") + "-" + stamp() + ".html", html, "text/html");
 }
 

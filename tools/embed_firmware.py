@@ -4,6 +4,8 @@ tools/BatteryAnalyzer.html, so the PC app can flash a board without VS Code.
 Run after changing the firmware (needs PlatformIO):
     python tools/embed_firmware.py
 """
+# Copyright (c) 2026 Ashoka Munasinghe. MIT License, see LICENSE.
+# SPDX-License-Identifier: MIT
 import datetime
 import json
 import os

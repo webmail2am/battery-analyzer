@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Ashoka Munasinghe. MIT License, see LICENSE.
+// SPDX-License-Identifier: MIT
+
 // Lithium battery analyzer
 //   Pro Mini 328 + AD7705 (16-bit ADC) + 0.96" I2C OLED (SSD1306)
 //
@@ -795,7 +798,7 @@ void setup() {
   pinMode(PIN_CHG_CHRG, INPUT_PULLUP);
 
   Serial.begin(SERIAL_BAUD);
-  Serial.println(F("# Li-ion analyzer  (send ? for calibration commands)"));
+  Serial.println(F("# Li-ion analyzer (c) 2026 Ashoka Munasinghe, MIT License  (send ? for help)"));
   // Clock diagnostics: F_CPU must match the real clock or all timing (and mAh) is off
   Serial.print(F("# F_CPU="));
   Serial.print(F_CPU);

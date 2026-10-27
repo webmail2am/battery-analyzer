@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Ashoka Munasinghe. MIT License, see LICENSE.
+# SPDX-License-Identifier: MIT
 # Regenerates the README screenshots of the PC app (docs/images/*.png) with headless
 # Microsoft Edge, using the app's built-in demo. Run from PowerShell:
 #   powershell -ExecutionPolicy Bypass -File docs\screenshots.ps1

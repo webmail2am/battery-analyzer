@@ -3,6 +3,8 @@
     pip install schemdraw matplotlib pypdf
     python docs/schematic.py
 """
+# Copyright (c) 2026 Ashoka Munasinghe. MIT License, see LICENSE.
+# SPDX-License-Identifier: MIT
 import os
 import schemdraw
 import schemdraw.elements as elm

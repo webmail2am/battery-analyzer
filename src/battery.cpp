@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Ashoka Munasinghe. MIT License, see LICENSE.
+// SPDX-License-Identifier: MIT
+
 #include <Arduino.h>
 #include "battery.h"
 
