@@ -1,0 +1,1377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battery Analyzer</title>
+<style>
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --ink: #1d2330; --muted: #6a7282; --line: #dde1e8;
+  --accent: #2563eb; --accent-ink: #ffffff; --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+  --v: #2563eb; --i: #d9480f; --grid: #e8ebf0; --console: #0f1720; --console-ink: #cfe3d4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b; --panel: #1b2029; --ink: #e6e9ef; --muted: #8e97a8; --line: #2c3340;
+    --accent: #4f8cff; --accent-ink: #0b1220; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+    --v: #60a5fa; --i: #fb923c; --grid: #262c37; --console: #0b0f14; --console-ink: #b9e3c6;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.4 "Segoe UI", system-ui, -apple-system, sans-serif; }
+header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 16px;
+  background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+header h1 { font-size: 17px; margin: 0 12px 0 0; font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.dot.on { background: var(--ok); } .dot.demo { background: var(--warn); }
+.spacer { flex: 1; }
+main { display: grid; grid-template-columns: 340px 1fr; gap: 14px; padding: 14px 16px; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+button, select, input { font: inherit; color: var(--ink); }
+button { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.danger { color: var(--bad); }
+button:disabled { opacity: .45; cursor: default; }
+select, input[type=number], input[type=text] { background: var(--panel); border: 1px solid var(--line);
+  border-radius: 7px; padding: 5px 8px; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.tile .k { font-size: 12px; color: var(--muted); }
+.tile .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tile.big { grid-column: span 2; }
+.tile.big .v { font-size: 34px; }
+.status { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.badge { padding: 2px 10px; border-radius: 99px; border: 1px solid var(--line); font-size: 13px; }
+.seg { display: flex; gap: 0; margin-bottom: 10px; }
+.seg button { flex: 1; border-radius: 0; }
+.seg button:first-child { border-radius: 7px 0 0 7px; }
+.seg button:last-child { border-radius: 0 7px 7px 0; }
+.seg button.sel { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.row > * { flex: 0 0 auto; }
+.row .grow { flex: 1; }
+.hint { color: var(--muted); font-size: 12px; }
+pre.code { background: var(--console); color: var(--console-ink); padding: 8px; border-radius: 7px; margin: 6px 0;
+  font: 12px/1.4 Consolas, monospace; white-space: pre-wrap; min-height: 2.8em; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.tabs button.sel { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+#chartWrap { position: relative; height: 420px; }
+#chart { width: 100%; height: 100%; display: block; }
+#console { background: var(--console); color: var(--console-ink); height: 200px; overflow: auto; border-radius: 7px;
+  padding: 8px; font: 12px/1.35 Consolas, monospace; white-space: pre-wrap; }
+#console .tx { color: #7cc0ff; } #console .err { color: #ff8a8a; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+details summary { cursor: pointer; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+details[open] summary { margin-bottom: 10px; }
+#toast { position: fixed; right: 16px; bottom: 16px; background: var(--ink); color: var(--bg); padding: 10px 14px;
+  border-radius: 8px; opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 360px; }
+#toast.show { opacity: .95; }
+#resultCard.flash { animation: flash 3s ease-out; }
+@keyframes flash { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.tile.wide { grid-column: span 2; }
+#resBody tr.pick { cursor: pointer; }
+#resBody tr.pick:hover td { background: var(--bg); }
+#resBody tr.sel td { background: var(--bg); }
+#resBody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.tile .v.s { font-size: 16px; font-weight: 600; }
+dialog#help { width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line);
+  border-radius: 12px; background: var(--panel); color: var(--ink); }
+dialog#help::backdrop { background: rgba(0, 0, 0, .45); }
+.helphead { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; background: var(--panel); }
+.helphead h2 { margin: 0; font-size: 18px; flex: 1; }
+.helpbody { padding: 6px 22px 22px; overflow-y: auto; max-height: calc(100vh - 120px); }
+.helpbody h3 { font-size: 16px; margin: 22px 0 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+.helpbody h3:first-of-type { border-top: 0; }
+.helpbody h4 { font-size: 14px; margin: 14px 0 4px; }
+.helpbody p, .helpbody li { line-height: 1.5; }
+.helpbody ul, .helpbody ol { padding-left: 22px; margin: 6px 0; }
+.helpbody table { margin: 6px 0 10px; }
+.helpbody th, .helpbody td { white-space: normal; vertical-align: top; }
+.helpbody code { background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 12.5px; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+.toc a { color: var(--accent); text-decoration: none; border: 1px solid var(--line); border-radius: 99px; padding: 2px 10px; font-size: 13px; }
+.note { border-left: 3px solid var(--warn); padding: 4px 10px; margin: 8px 0; background: var(--bg); border-radius: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Battery Analyzer</h1>
+  <span class="dot" id="dot"></span><span id="connText">Not connected</span>
+  <span class="spacer"></span>
+  <label>Baud <select id="baud">
+    <option value="38400">38400 (LGT8F328P)</option><option value="57600">57600 (ATmega328P)</option>
+  </select></label>
+  <button class="primary" id="btnConnect">Connect</button>
+  <button id="btnDemo" title="Simulated battery, no hardware needed">Demo</button>
+  <button id="btnHelp" title="Operation manual (F1)">Help</button>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <div class="status">
+        <span class="badge" id="stateBadge">—</span>
+        <span class="hint" id="elapsed"></span>
+      </div>
+      <div class="tiles">
+        <div class="tile big"><div class="k">Voltage</div><div class="v" id="tV">—</div></div>
+        <div class="tile"><div class="k">Current</div><div class="v" id="tI">—</div></div>
+        <div class="tile"><div class="k">Power</div><div class="v" id="tP">—</div></div>
+        <div class="tile"><div class="k">Capacity</div><div class="v" id="tMah">—</div></div>
+        <div class="tile"><div class="k">Energy</div><div class="v" id="tWh">—</div></div>
+        <div class="tile"><div class="k">Internal resistance</div><div class="v" id="tR">—</div></div>
+        <div class="tile"><div class="k">SoC (at rest)</div><div class="v" id="tSoc">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Control</h2>
+      <div class="seg" id="modeSeg">
+        <button data-mode="0">QUICK</button><button data-mode="1">FULL</button><button data-mode="2">CHG+DIS</button><button data-mode="3">OUTPUT</button>
+      </div>
+      <div class="row">
+        <button class="primary grow" id="btnStart">Start test</button>
+        <button class="grow" id="btnRint">Rint test</button>
+        <button class="danger grow" id="btnStop">Abort</button>
+      </div>
+      <div class="hint">QUICK: drains until the voltage falls ~60 mV (1–30 min), rests until settled, then estimates capacity. FULL: discharge to cutoff.
+        CHG+DIS: charge, rest, then full discharge. OUTPUT: power the device on the load terminals
+        and log its current, power and energy (the analyzer's own draw is subtracted).</div>
+    </div>
+
+    <div class="card" id="resultCard" hidden>
+      <div class="row"><h2 class="grow" style="margin:0">Test result</h2><span class="hint" id="resWhen"></span></div>
+      <div class="tiles" id="resTiles"></div>
+      <div class="row" style="margin:10px 0 0">
+        <button class="primary grow" id="btnReport" title="HTML page with summary and charts; print it or save as PDF">Export report</button>
+        <button class="grow" id="btnResultCsv" title="Summary plus this test's readings">Export CSV</button>
+      </div>
+    </div>
+
+    <details class="card">
+      <summary>Calibration &amp; settings</summary>
+      <h2 style="margin-top:4px">Battery settings (saved on the analyzer)</h2>
+      <div class="row">
+        <span>Battery type</span>
+        <select id="setChem" class="grow">
+          <option value="0">Li-ion / LiPo (4.20 V)</option>
+          <option value="1">LiHV (4.35 V)</option>
+          <option value="2">LiFePO4 (3.65 V)</option>
+        </select>
+      </div>
+      <div class="row">
+        <span>Cutoff voltage</span>
+        <input type="number" id="setCut" step="0.01" min="2.0" max="3.6" value="3.00" style="width:80px"> V
+        <button class="primary" id="btnSaveSet">Save to analyzer</button>
+      </div>
+      <div class="hint" id="setInfo">Connect to read the analyzer's settings.</div>
+      <h2 style="margin-top:14px">Calibration</h2>
+      <div class="row">
+        <button id="btnLoadOn">Load on</button><button id="btnLoadOff">Load off</button>
+        <button id="btnMon">Raw monitor</button>
+      </div>
+      <div class="row">
+        <span>Meter voltage</span>
+        <input type="number" id="calV" step="0.001" placeholder="3.987" style="width:90px">
+        <button id="btnCalV">Set V</button>
+      </div>
+      <div class="hint">Load off, meter across the cell terminals.</div>
+      <div class="row" style="margin-top:8px">
+        <span>Meter current</span>
+        <input type="number" id="calI" step="0.001" placeholder="1.234" style="width:90px">
+        <button id="btnCalI">Set I</button>
+      </div>
+      <div class="hint">Load on, meter (10 A range) in series with the cell lead.</div>
+      <div class="row" style="margin-top:8px"><span class="grow">Copy into include/config.h:</span>
+        <button id="btnCopyCal">Copy</button></div>
+      <pre class="code" id="calOut">(send Set V / Set I first)</pre>
+    </details>
+  </section>
+
+  <section>
+    <div class="card">
+      <div class="row">
+        <div class="tabs" id="tabs">
+          <button data-tab="time" class="sel">V &amp; I vs time</button>
+          <button data-tab="cap">V vs capacity</button>
+          <button data-tab="vi">V–I curve</button>
+        </div>
+        <span class="spacer grow"></span>
+        <label class="hint"><input type="checkbox" id="autoClear" checked> clear on test start</label>
+        <button id="btnClear">Clear</button>
+        <button id="btnCsv">Export CSV</button>
+        <button id="btnPng">Save PNG</button>
+      </div>
+      <div id="chartWrap"><canvas id="chart"></canvas></div>
+      <div class="hint" id="chartInfo" style="margin-top:6px"></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><h2 class="grow" style="margin:0">Results</h2>
+        <button id="btnResCsv">Export</button><button id="btnResClear">Clear</button></div>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Time</th><th>Test</th><th>Capacity</th><th>Energy</th><th>Duration</th>
+          <th>Rint</th><th>Estimate</th><th>End</th></tr></thead>
+        <tbody id="resBody"></tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <h2>Console</h2>
+      <div id="console"></div>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="cmd" class="grow" placeholder="command, e.g. ?  s 1  x  r  t 1000">
+        <button id="btnSend">Send</button>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<dialog id="help">
+  <div class="helphead"><h2>Battery Analyzer: operation manual</h2><button id="btnHelpClose">Close</button></div>
+  <div class="helpbody">
+    <nav class="toc">
+      <a href="#h-start">Quick start</a><a href="#h-device">The analyzer</a><a href="#h-buttons">Buttons</a>
+      <a href="#h-modes">Test modes</a><a href="#h-output">OUTPUT mode</a><a href="#h-app">This software</a><a href="#h-settings">Battery settings</a>
+      <a href="#h-cal">Calibration</a><a href="#h-trouble">Troubleshooting</a><a href="#h-safety">Safety</a>
+      <a href="#h-proto">Serial protocol</a>
+    </nav>
+
+    <h3 id="h-start">Quick start</h3>
+    <ol>
+      <li>Put the cell in the holder and switch the analyzer on (<b>SW1</b>). For 2 seconds the screen shows <b>SETTINGS</b>:
+        the stored battery type and cutoff voltage. Then it shows <b>READY</b>, the cell voltage, and the selected mode.</li>
+      <li>Connect the USB-serial adapter to the PC. Open this file in <b>Chrome or Edge</b>.</li>
+      <li>Choose the baud rate for your Pro Mini: <b>38400</b> for the LGT8F328P, <b>57600</b> for an original ATmega328P. Click <b>Connect</b> and pick the COM port. Live readings appear within a few seconds.</li>
+      <li>Pick a mode (QUICK, FULL, CHG+DIS, OUTPUT) and click <b>Start test</b>, or use the buttons on the analyzer.</li>
+      <li>When the test ends, the <b>Test result</b> card appears with the full summary. Use <b>Export report</b> or <b>Export CSV</b>
+        to save it. The result is also shown on the analyzer and added to the <b>Results</b> table.</li>
+      <li>Testing a LiFePO4 or LiHV cell? Set the <b>battery type</b> first (Calibration &amp; settings).</li>
+      <li>Switch <b>SW1 off</b> when you're done. The electronics keep drawing about 30–60 mA from the cell.</li>
+    </ol>
+    <p class="note">No hardware at hand? Click <b>Demo</b>. It simulates a 2600 mAh cell with time running 60× faster.</p>
+
+    <h3 id="h-device">The analyzer</h3>
+    <p>It measures one Li-ion cell through a 0.02 Ω shunt in the cell's minus lead with a 16-bit AD7705 ADC.
+      Everything the cell supplies is measured: the load, the analyzer's own electronics (it runs from the cell through a 5 V boost and a 3.3 V regulator),
+      and charge current (shown negative).</p>
+    <table>
+      <tr><th>Measurement</th><th>Range</th><th>Resolution</th></tr>
+      <tr><td>Cell voltage</td><td>0–5 V</td><td>~0.1 mV</td></tr>
+      <tr><td>Current</td><td>−2.5…+2.5 A (discharge limit 2.5 A)</td><td>~0.12 mA</td></tr>
+      <tr><td>Readings</td><td colspan="2">about 5 per second; sent to the PC once a second</td></tr>
+    </table>
+    <h4>Connections</h4>
+    <ul>
+      <li><b>Cell:</b> the cell holder. Use thick wires for the load path. The voltage sense wire and the cell-minus wire go to the AD7705 module on their own thin wires.</li>
+      <li><b>Load terminals:</b> a power resistor (2–5 Ω, power rated) for battery tests, or the device to power in OUTPUT mode. Device + goes to BAT+, device − to the load terminal (MOSFET).</li>
+      <li><b>USB 5 V input:</b> only needed for charging (CHG+DIS mode).</li>
+      <li><b>Serial header:</b> GND, TX, RX, DTR to the USB-serial adapter. Don't connect its VCC while the analyzer runs from the cell.</li>
+    </ul>
+
+    <h3 id="h-buttons">Buttons on the analyzer</h3>
+    <table>
+      <tr><th>Button</th><th>Idle screen</th><th>Test running</th><th>Output on</th><th>Result / error screen</th></tr>
+      <tr><td><b>MODE</b></td><td>next mode: QUICK → FULL → CHG+DIS → OUTPUT</td><td>–</td><td>–</td><td>–</td></tr>
+      <tr><td><b>START</b></td><td>start the selected test / output on</td><td>hold 1.5 s = abort</td><td>press = output off</td><td>back to idle</td></tr>
+      <tr><td><b>RINT</b></td><td>internal resistance test</td><td>hold 1.5 s = abort</td><td>press = output off</td><td>back to idle</td></tr>
+    </table>
+    <p>The analyzer always starts in <b>FULL</b> mode. During long tests the screen dims after one minute to protect the OLED.</p>
+
+    <h3 id="h-modes">Test modes</h3>
+    <h4>Rint: internal resistance</h4>
+    <p>The load is off for 1 s (open-circuit voltage Voc), then on for 1 s (loaded voltage and current).
+      <code>Rint = (Voc − Vload) / (Iload − Iidle)</code>. Typical values: a good 18650 is 20–60 mΩ, a worn one 100 mΩ or more.
+      Contact and holder resistance count too, so press the cell firmly into the holder.</p>
+    <h4>QUICK: capacity estimate (about 5–45 minutes)</h4>
+    <ol>
+      <li>Measures Rint and the resting voltage OCV₀.</li>
+      <li>Discharges until the <i>estimated</i> resting voltage (V + I × Rint) has dropped <b>60 mV</b>: at least 1 minute, at most 30.
+        The screen shows the progress as <code>dV 23/60mV</code>.</li>
+      <li>Rests until the voltage has settled (rises less than 1 mV per minute), 3 to 15 minutes, then measures OCV₁.</li>
+      <li>If the resting voltage moved less than 40 mV, it does <b>one more drain-and-rest round</b> (title "QUICK DRAIN 2").</li>
+      <li>Estimates capacity from the change in state of charge: <code>mAh ÷ (SoC(OCV₀) − SoC(OCV₁))</code>.</li>
+    </ol>
+    <p>The result says how reliable it is: <b>Approx +-5%</b> (voltage moved 50 mV or more), <b>+-10%</b> (30–50 mV) or
+      <b>Low confidence</b>. Small cells and heavy loads finish in a few minutes. Large cells in the flat middle of their curve take longest.
+      Best accuracy comes from a load of about 0.5–1C (for a 500 mAh cell, 250–500 mA).
+      On LiFePO4 the voltage curve is almost flat, so QUICK is only a rough guide there: use FULL or a full charge-discharge.</p>
+    <h4>FULL: discharge to cutoff</h4>
+    <p>Measures Rint, then discharges until the voltage under load stays below the <b>cutoff voltage</b> (see Battery settings). The result shows capacity (mAh), energy (Wh),
+      time, average current and Rint. For a true capacity, start with a fully charged cell, or use CHG+DIS.</p>
+    <h4>CHG+DIS: charge, rest, discharge</h4>
+    <p><b>Li-ion / LiPo only</b>: the TP4056 charges to 4.2 V, so this mode is disabled for LiHV and LiFePO4.
+      Charges with the TP4056 until it reports full (needs USB 5 V), rests 10 minutes, measures Rint, then runs a FULL discharge.
+      Afterwards it recharges the cell while showing the result. This gives the most reliable capacity figure.</p>
+    <h4>Test ends</h4>
+    <table>
+      <tr><th>Message</th><th>Meaning</th></tr>
+      <tr><td>Cutoff reached</td><td>normal end: the cell reached the cutoff voltage under load</td></tr>
+      <tr><td>Aborted / Stopped</td><td>you stopped it</td></tr>
+      <tr><td>Overcurrent</td><td>more than 2.5 A: use a larger load resistor</td></tr>
+      <tr><td>No load current</td><td>the load isn't connected, or the MOSFET doesn't switch</td></tr>
+      <tr><td>Timeout</td><td>discharge longer than 20 h, or charge longer than 6 h</td></tr>
+      <tr><td>Approx +-5% / +-10% / Low confidence</td><td>QUICK estimate made, with its expected accuracy</td></tr>
+      <tr><td>dSoC too small</td><td>QUICK couldn't see enough change (flat curve); use FULL</td></tr>
+      <tr><td>TP4056: Li-ion</td><td>CHG+DIS refused: the selected battery type can't be charged by the TP4056</td></tr>
+    </table>
+
+    <h3 id="h-output">OUTPUT mode: power and measure a device</h3>
+    <ol>
+      <li>Connect the device to the load terminals instead of the load resistor: device + to BAT+, device − to the load terminal.</li>
+      <li>Select <b>OUTPUT</b> with MODE (or the OUTPUT button here), then press START (<b>Output ON</b>).</li>
+      <li>The analyzer first measures its own current with the output off, then switches the output on. All readings show the <b>device's</b> share:
+        current, power, mAh, Wh, minimum and maximum current.</li>
+      <li>Press START or RINT (<b>Output OFF</b>) to stop. The output also switches off at the cutoff voltage, above 2.5 A, or after 20 h.
+        The result gives energy, run time, and average / minimum / maximum current.</li>
+    </ol>
+    <p>The device gets the cell voltage (4.2 → 3.0 V). Below about 20 mA the reading is rough, because the analyzer's own consumption varies by a few mA.
+      Very short current pulses are averaged.</p>
+
+    <h3 id="h-app">Using this software</h3>
+    <h4>Connecting</h4>
+    <ul>
+      <li>Works in <b>Chrome and Edge</b> (Web Serial). Firefox and Safari can't open serial ports. It also works offline.</li>
+      <li><b>Connecting restarts the analyzer</b>, as an upload does. Connect before starting a long test.</li>
+      <li>If nothing appears after 10 seconds, the badge shows <b>No data</b> and the Console says why (see Troubleshooting).</li>
+    </ul>
+    <h4>Live readings and control</h4>
+    <p>The left panel shows voltage, current, power, capacity, energy, internal resistance, state of charge (only meaningful at rest), the test state and the test time.
+      The mode buttons, <b>Start test</b>, <b>Rint test</b> and <b>Abort / Back / Output OFF</b> do the same as the analyzer's buttons.</p>
+    <h4>Charts</h4>
+    <ul>
+      <li><b>V &amp; I vs time:</b> voltage (left axis) and current (right axis).</li>
+      <li><b>V vs capacity:</b> the discharge curve, voltage against mAh.</li>
+      <li><b>V–I curve:</b> every reading as a point. Each load step (the load switching on or off) is drawn as an orange segment with its
+        resistance ΔV/ΔI; the median of all steps is shown below the chart.</li>
+      <li>Hover on a chart for exact values. <b>Clear</b> empties it ("clear on test start" does this automatically).
+        <b>Export CSV</b> saves the raw readings, <b>Save PNG</b> saves the chart image.</li>
+    </ul>
+    <h4>Test result</h4>
+    <p>When a test finishes, the <b>Test result</b> card appears (highlighted) in the left panel. It shows:</p>
+    <ul>
+      <li><b>Capacity</b> (or the QUICK estimate, or what an OUTPUT device used), energy, discharge or run time, and average current</li>
+      <li><b>Internal resistance</b> (OUTPUT: minimum and maximum current)</li>
+      <li><b>Voltage</b> at the start and end</li>
+      <li><b>How it ended</b>, and the battery type and cutoff used</li>
+    </ul>
+    <ul>
+      <li><b>Export report:</b> saves an HTML page with the summary and the charts of this test. Open it in the browser to read or print it,
+        or choose <i>Print → Save as PDF</i> for a PDF.</li>
+      <li><b>Export CSV:</b> saves the summary followed by every reading of this test (time, V, A, mAh, mWh, state), for Excel.</li>
+    </ul>
+    <p>Start and end voltage and the charts need the readings, so keep the PC connected for the whole test.</p>
+    <h4>Results</h4>
+    <p>Each finished test and Rint measurement is added to the table and kept in this browser on this PC, together with the test's readings.</p>
+    <ul>
+      <li><b>Click a row</b> to show that result again in the Test result card, with its charts and both exports. The row stays highlighted.</li>
+      <li><b>Export</b> saves the whole table as CSV. <b>Clear</b> deletes all results and their stored readings.</li>
+      <li>Results saved by older versions of this program open without charts or start/end voltage.</li>
+    </ul>
+    <h4>Console</h4>
+    <p>Shows the analyzer's messages (live data lines are hidden). Type a command and press Enter; see Serial protocol.</p>
+
+    <h3 id="h-settings">Battery settings: type and cutoff voltage</h3>
+    <p>Open <b>Calibration &amp; settings</b>, choose the <b>battery type</b>, check the <b>cutoff voltage</b> (the voltage where discharges end),
+      and click <b>Save to analyzer</b>. They're stored on the analyzer's chip and kept after power-off. The idle screen shows them, e.g.
+      <code>Li-ion/LiPo 3.00V</code>.</p>
+    <table>
+      <tr><th>Battery type</th><th>Full</th><th>Default cutoff</th><th>Allowed cutoff</th><th>CHG+DIS</th></tr>
+      <tr><td>Li-ion / LiPo (LCO, NMC)</td><td>4.20 V</td><td>3.00 V</td><td>2.50–3.60 V</td><td>yes</td></tr>
+      <tr><td>LiHV</td><td>4.35 V</td><td>3.00 V</td><td>2.50–3.60 V</td><td>no</td></tr>
+      <tr><td>LiFePO4</td><td>3.65 V</td><td>2.50 V</td><td>2.00–3.00 V</td><td>no</td></tr>
+    </table>
+    <p>The battery type also selects the voltage-to-charge table used for the SoC reading and the QUICK estimate.
+      NiMH, NiCd and LTO cells can't be tested: the analyzer runs from the cell under test, and its boost converter needs at least about 2 V.</p>
+
+    <h3 id="h-cal">Calibration</h3>
+    <p>Do this once after building, and after changing the shunt, the AD7705 module or the reference. You need a multimeter.</p>
+    <ol>
+      <li><b>Reference:</b> measure the LM285-2.5 on the AD7705 module (pin 8 to pin 4); it should read 2.46–2.54 V. Put the value in
+        <code>ADC_VREF</code> in <code>include/config.h</code> and upload.</li>
+      <li><b>Raw check:</b> open <b>Calibration</b> and click <b>Raw monitor</b>. In the Console, AIN2 should be about cell voltage ÷ 2,
+        and AIN1 about −10 mV per amp while discharging.</li>
+      <li><b>Voltage:</b> load off. Measure the cell at its terminals, enter the reading in <b>Meter voltage</b>, and click <b>Set V</b>.</li>
+      <li><b>Current:</b> put the meter (10 A range) in series with the cell lead. Click <b>Load on</b>, wait a few seconds, enter the meter
+        reading in <b>Meter current</b>, click <b>Set I</b>, then <b>Load off</b>. 1–2 A gives the best accuracy.</li>
+      <li>Click <b>Copy</b> and paste the two <code>#define V_CAL</code> / <code>I_CAL</code> lines into <code>include/config.h</code>, then upload.
+        Without that, the factors are lost at power-off.</li>
+    </ol>
+
+    <h3 id="h-trouble">Troubleshooting</h3>
+    <table>
+      <tr><th>Symptom</th><th>Cause and fix</th></tr>
+      <tr><td>No COM port in the list</td><td>Driver for the USB-serial adapter missing (CH340, CP2102 or FTDI); install it.</td></tr>
+      <tr><td>"No data", nothing in the Console</td><td>Analyzer off, or TX/RX wires swapped or loose. Press the analyzer's reset button.</td></tr>
+      <tr><td>Garbage characters</td><td>Wrong baud rate, or the wrong firmware build: LGT8F328P = 38400 (<code>promini_3v3_4mhz</code>), original ATmega328P = 57600 (<code>promini_3v3</code>).</td></tr>
+      <tr><td>"Old firmware" / no live data</td><td>Upload the current firmware (<code>env:promini_3v3_4mhz</code>).</td></tr>
+      <tr><td>Disconnects when uploading</td><td>Normal: the upload needs the COM port. Click Disconnect first, upload, then Connect again.</td></tr>
+      <tr><td>"serial BufferOverrunError … (still connected)"</td><td>Harmless; the app keeps reading. Frequent errors point to a bad cable or the wrong baud rate.</td></tr>
+      <tr><td>ERROR "AD7705 missing" / "no DRDY"</td><td>Check the SPI wires (D11, D12, D13, CS D6, DRDY D5) and the module's 3.3 V supply.</td></tr>
+      <tr><td>Blank OLED</td><td>Serial shows "# OLED not found": check SDA = A4 and SCL = A5.</td></tr>
+      <tr><td>Voltage or current a few % off</td><td>Do the calibration; check <code>ADC_VREF</code>.</td></tr>
+      <tr><td>Current reads about twice too high or low</td><td><code>SHUNT_OHMS</code> or <code>SHUNT_DIV</code> doesn't match the hardware.</td></tr>
+    </table>
+
+    <h3 id="h-safety">Safety</h3>
+    <ul>
+      <li>Never leave high-current tests unattended. There's no temperature sensing.</li>
+      <li>Use a power-rated load resistor: about V × I watts (4.2 V × 1 A ≈ 4.2 W). It gets hot.</li>
+      <li>Discharge stops at the cutoff voltage. Don't leave a cell connected afterwards: switch SW1 off, because the electronics keep draining it.</li>
+      <li>Only charge cells that aren't damaged, swollen or hot. Use a TP4056 module without the DW01 protection board.</li>
+      <li>Always set the right battery type before testing. Never charge LiFePO4 or LiHV cells with CHG+DIS (it's blocked for them).</li>
+    </ul>
+
+    <h3 id="h-proto">Serial protocol</h3>
+    <p>38400 baud (LGT8F328P) or 57600 baud (ATmega328P), 8N1, lines end with CR LF.</p>
+    <table>
+      <tr><th>From the analyzer</th><th>Meaning</th></tr>
+      <tr><td><code>D,ms,state,mode,V,A,mAh,mWh,rint</code></td><td>live data, once a second</td></tr>
+      <tr><td><code>R,mode,mAh,mWh,seconds,rint,estimate,end</code></td><td>test finished</td></tr>
+      <tr><td><code>O,avg_A,min_A,max_A</code></td><td>OUTPUT summary (after its R line)</td></tr>
+      <tr><td><code>K,rint_mOhm,ocv</code></td><td>Rint result</td></tr>
+      <tr><td><code>S,chem,cutoff_mV,min_mV,max_mV,can_charge</code></td><td>settings (at power-up and after a change)</td></tr>
+      <tr><td><code># ...</code></td><td>messages; <code># ERROR: ...</code> for errors</td></tr>
+    </table>
+    <p>State: 0 idle, 1 quick drain, 2 quick rest, 3 charging, 4 rest, 5 discharging, 6 result, 7 error, 8 output on.
+      Mode: 0 QUICK, 1 FULL, 2 CHG+DIS, 3 OUTPUT.</p>
+    <table>
+      <tr><th>Command</th><th>Action</th></tr>
+      <tr><td><code>s [n]</code></td><td>start (optionally mode n first)</td></tr>
+      <tr><td><code>x</code></td><td>abort / output off / back</td></tr>
+      <tr><td><code>r</code></td><td>Rint test</td></tr>
+      <tr><td><code>p n</code></td><td>select mode</td></tr>
+      <tr><td><code>t ms</code></td><td>live data interval (0 = off)</td></tr>
+      <tr><td><code>m</code></td><td>raw monitor on/off</td></tr>
+      <tr><td><code>v volts</code> / <code>i amps</code></td><td>calibrate voltage / current</td></tr>
+      <tr><td><code>l 1</code> / <code>l 0</code></td><td>load on / off (calibration; on for 60 s at most)</td></tr>
+      <tr><td><code>c n</code></td><td>battery type: 0 Li-ion/LiPo, 1 LiHV, 2 LiFePO4 (also sets its default cutoff; saved)</td></tr>
+      <tr><td><code>u volts</code></td><td>cutoff voltage (saved)</td></tr>
+      <tr><td><code>g</code></td><td>print settings: <code>S,chem,cutoff_mV,min_mV,max_mV,can_charge</code></td></tr>
+      <tr><td><code>?</code></td><td>help</td></tr>
+    </table>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+const STATES = ["Idle", "Quick drain", "Quick rest", "Charging", "Rest", "Discharging", "Result", "Error", "Output on"];
+const MODES = ["QUICK", "FULL", "CHG+DIS", "OUTPUT"];
+const RUNNING = s => (s >= 1 && s <= 5) || s === 8;
+const DISCHARGING = s => s === 1 || s === 5 || s === 8;
+const CHEMS = ["Li-ion / LiPo", "LiHV 4.35 V", "LiFePO4"];
+const CHEM_CUT = [[3.0, 2.5, 3.6], [3.0, 2.5, 3.6], [2.5, 2.0, 3.0]];   // default, min, max (V)
+const OCVS = [   // rested voltage for SoC 0, 5 ... 100 % (same tables as the firmware)
+  [3.27, 3.61, 3.69, 3.71, 3.73, 3.75, 3.77, 3.79, 3.80, 3.82, 3.84, 3.85, 3.87, 3.91, 3.95, 3.98, 4.02, 4.08, 4.11, 4.15, 4.20],
+  [3.27, 3.61, 3.69, 3.71, 3.73, 3.75, 3.77, 3.79, 3.80, 3.82, 3.84, 3.86, 3.89, 3.94, 3.99, 4.03, 4.08, 4.15, 4.21, 4.28, 4.35],
+  [2.50, 2.90, 3.15, 3.20, 3.23, 3.25, 3.26, 3.27, 3.28, 3.285, 3.29, 3.295, 3.30, 3.305, 3.31, 3.32, 3.33, 3.34, 3.35, 3.40, 3.60],
+];
+const OCV = OCVS[0];   // demo cell
+let devCfg = { chem: 0, cutoff: 3.0, min: 2.5, max: 3.6, charge: true, known: false };
+let savePending = false;
+const $ = id => document.getElementById(id);
+
+// ------------------------------------------------------------------ state --
+let port = null, reader = null, writer = null, readDone = null;
+let demo = null;
+let live = { st: -1, mode: 1, v: NaN, i: NaN, mah: 0, mwh: 0, rint: NaN, ms: 0 };
+let samples = [];              // {t, v, i, mah, mwh, st}
+let tOffset = 0, lastMs = -1, testStartT = 0;
+let tab = "time";
+let results = [];
+// JSON stores NaN as null; turn it back into NaN so empty fields stay empty ("—")
+try { results = JSON.parse(localStorage.getItem("ba_results") || "[]", (k, v) => (v === null ? NaN : v)); }
+catch (e) { results = []; }
+
+function socFromOcv(v, chem) {
+  const t = OCVS[chem === undefined ? devCfg.chem : chem] || OCVS[0];
+  if (!(v > t[0])) return 0;
+  if (v >= t[t.length - 1]) return 100;
+  for (let k = 0; k < t.length - 1; k++)
+    if (v < t[k + 1]) return (k + (v - t[k]) / (t[k + 1] - t[k])) * 5;
+  return 100;
+}
+
+// ----------------------------------------------------------- device settings --
+function showSettings() {
+  $("setChem").value = devCfg.chem;
+  $("setCut").value = devCfg.cutoff.toFixed(2);
+  $("setCut").min = devCfg.min; $("setCut").max = devCfg.max;
+  $("setInfo").textContent = devCfg.known
+    ? "On the analyzer: " + CHEMS[devCfg.chem] + ", cutoff " + devCfg.cutoff.toFixed(2) + " V (allowed " +
+      devCfg.min.toFixed(2) + "–" + devCfg.max.toFixed(2) + " V). CHG+DIS: " +
+      (devCfg.charge ? "available." : "not available (the TP4056 charges Li-ion / LiPo only).")
+    : "Connect to read the analyzer's settings.";
+  updateButtons();
+}
+
+$("setChem").onchange = () => {
+  const c = CHEM_CUT[+$("setChem").value];
+  $("setCut").value = c[0].toFixed(2); $("setCut").min = c[1]; $("setCut").max = c[2];
+};
+
+async function saveSettings() {
+  const chem = +$("setChem").value, cut = parseFloat($("setCut").value), lim = CHEM_CUT[chem];
+  if (!(cut >= lim[1] && cut <= lim[2])) {
+    toast("Cutoff for " + CHEMS[chem] + " must be " + lim[1].toFixed(2) + "–" + lim[2].toFixed(2) + " V");
+    return;
+  }
+  savePending = true;
+  if (chem !== devCfg.chem || !devCfg.known) {
+    await send("c " + chem);
+    await new Promise(r => setTimeout(r, 400));     // the analyzer writes its settings memory
+  }
+  await send("u " + cut.toFixed(2));
+}
+
+// ----------------------------------------------------------------- serial --
+async function connect() {
+  if (port) return disconnect();
+  if (!("serial" in navigator)) {
+    toast("This browser has no Web Serial. Open this file in Chrome or Edge.");
+    return;
+  }
+  stopDemo();
+  try {
+    port = await navigator.serial.requestPort();
+    // big receive buffer: the default 255 bytes overruns while the page is busy drawing
+    await port.open({ baudRate: +$("baud").value, bufferSize: 65536 });
+  } catch (e) { port = null; logLine("# " + e.message, "err"); return; }
+  writer = port.writable.getWriter();
+  setConn("on", "Connected @ " + $("baud").value);
+  gotTelemetry = false; gotText = false; badChars = 0;
+  readDone = readLoop(port);
+  checkLink(++linkCheck);
+  setTimeout(() => { if (port && !devCfg.known) send("g"); }, 3000);
+}
+
+// Explains an empty dashboard: nothing received, wrong baud, or firmware without telemetry.
+let gotTelemetry = false, gotText = false, badChars = 0, linkCheck = 0;
+function checkLink(id) {
+  setTimeout(() => {
+    if (!port || id !== linkCheck || gotTelemetry) return;
+    let msg;
+    if (badChars > 20) msg = "Receiving garbage: the baud rate is wrong. Use 38400 for an LGT8F328P, 57600 for an original ATmega328P.";
+    else if (gotText) msg = "The analyzer answers but sends no live data (D lines). Upload the current firmware.";
+    else msg = "Nothing received yet. Check that the board is powered and TX/RX are connected, or press its reset button.";
+    logLine("# " + msg, "err");
+    toast(msg);
+    $("stateBadge").textContent = "No data";
+  }, 10000);
+}
+
+// Reads until Disconnect or unplug. BufferOverrunError, FramingError, ParityError and
+// BreakError are recoverable: the port stays open with a fresh readable, so keep going.
+async function readLoop(p) {
+  const dec = new TextDecoder();
+  let buf = "", errTimes = [];
+  while (port === p && p.readable) {
+    const now = Date.now();
+    errTimes = errTimes.filter(t => now - t < 5000);
+    if (errTimes.length > 20) {
+      logLine("# too many serial errors; disconnected. Check the baud rate and the cable.", "err");
+      break;
+    }
+    reader = p.readable.getReader();
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const text = dec.decode(value, { stream: true });
+        badChars += (text.match(/[^\x20-\x7e\r\n\t]/g) || []).length;   // many = baud mismatch
+        buf += text;
+        if (buf.length > 4096) buf = buf.slice(-1024);                  // no newlines: garbage
+        let k;
+        while ((k = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, k).trim();
+          buf = buf.slice(k + 1);
+          try { handleLine(line); }                     // an app bug must not stop serial reading
+          catch (e) { logLine("# app error: " + e.message + " in line: " + line, "err"); }
+        }
+      }
+    } catch (e) {
+      errTimes.push(Date.now());
+      if (port === p) logLine("# serial " + (e.name || "error") + ": " + e.message + " (still connected)", "err");
+    } finally {
+      try { reader.releaseLock(); } catch (e) {}
+      reader = null;
+    }
+  }
+  if (port === p) disconnect();   // the readable went away: adapter unplugged
+}
+
+async function disconnect() {
+  const p = port;
+  port = null;
+  try { if (reader) await reader.cancel(); } catch (e) {}
+  try { if (readDone) await readDone; } catch (e) {}
+  try { if (writer) writer.releaseLock(); } catch (e) {}
+  try { if (p) await p.close(); } catch (e) {}
+  reader = writer = readDone = null;
+  setConn("", "Not connected");
+}
+
+async function send(cmd) {
+  logLine("> " + cmd, "tx");
+  if (demo) return demo.command(cmd);
+  if (!writer) { toast("Not connected"); return; }
+  await writer.write(new TextEncoder().encode(cmd + "\n"));
+}
+
+// ---------------------------------------------------------------- parsing --
+function handleLine(line) {
+  if (!line) return;
+  if (/^[\x20-\x7e]+$/.test(line)) gotText = true;
+  if (line.startsWith("t_s,state,")) {
+    logLine(line);
+    logLine("# Old firmware: it has no live data for this app. Upload the current firmware.", "err");
+    return;
+  }
+  const f = line.split(",");
+  if (f[0] === "D" && f.length >= 9) {
+    gotTelemetry = true;
+    const d = { ms: +f[1], st: +f[2], mode: +f[3], v: +f[4], i: +f[5], mah: +f[6], mwh: +f[7], rint: parseFloat(f[8]) };
+    onTelemetry(d);
+    return;                       // too frequent for the console
+  }
+  logLine(line, line.startsWith("# ERROR") ? "err" : "");
+  if (f[0] === "R" && f.length >= 8) {
+    const r = { when: Date.now(), type: MODES[+f[1]] || "?", mah: +f[2], mwh: +f[3], sec: +f[4],
+                rint: parseFloat(f[5]), est: parseFloat(f[6]), reason: f.slice(7).join(",") };
+    addResult(Object.assign({}, r));
+    captureResult(r);
+    toast("Test finished: " + f[2] + " mAh (" + f.slice(7).join(",") + ")");
+  } else if (f[0] === "O" && f.length >= 4 && results.length && results[0].type === "OUTPUT") {
+    if (lastResult && lastResult.type === "OUTPUT") {
+      lastResult.avg = +f[1]; lastResult.min = +f[2]; lastResult.max = +f[3];
+      renderLastResult();
+    }
+    const r = results[0];
+    r.avg = +f[1]; r.min = +f[2]; r.max = +f[3];
+    r.reason += " · avg " + r.avg.toFixed(3) + " A, min " + r.min.toFixed(3) + " A, max " + r.max.toFixed(3) + " A";
+    try { localStorage.setItem("ba_results", JSON.stringify(results.slice(0, 500))); } catch (e) {}
+    renderResults();
+  } else if (f[0] === "S" && f.length >= 6) {
+    devCfg = { chem: +f[1], cutoff: f[2] / 1000, min: f[3] / 1000, max: f[4] / 1000, charge: f[5] === "1", known: true };
+    showSettings();
+    if (savePending) { savePending = false; toast("Saved on the analyzer: " + CHEMS[devCfg.chem] + ", cutoff " + devCfg.cutoff.toFixed(2) + " V"); }
+  } else if (f[0] === "K" && f.length >= 3) {
+    addResult({ when: Date.now(), type: "RINT", mah: NaN, mwh: NaN, sec: NaN, rint: parseFloat(f[1]),
+                est: NaN, reason: "Voc " + (+f[2]).toFixed(3) + " V", voc: +f[2],
+                chem: devCfg.chem, cutoff: devCfg.cutoff, chemKnown: devCfg.known });
+    toast("Rint = " + (+f[1]).toFixed(1) + " mΩ");
+  } else if (line.startsWith("#define")) {
+    const lines = $("calOut").dataset.lines ? JSON.parse($("calOut").dataset.lines) : {};
+    const m = line.match(/#define\s+(\w+)/);
+    if (m) lines[m[1]] = line;
+    $("calOut").dataset.lines = JSON.stringify(lines);
+    $("calOut").textContent = Object.values(lines).join("\n");
+  }
+}
+
+function onTelemetry(d) {
+  if (lastMs >= 0 && d.ms < lastMs) tOffset += lastMs;      // device restarted
+  lastMs = d.ms;
+  const t = (d.ms + tOffset) / 1000;
+  const wasRunning = RUNNING(live.st);
+  if (!wasRunning && RUNNING(d.st)) {
+    if ($("autoClear").checked) samples = [];
+    testStartT = t;
+  }
+  live = d;
+  samples.push({ t, v: d.v, i: d.i, mah: d.mah, mwh: d.mwh, st: d.st });
+  if (samples.length > 200000) samples.splice(0, samples.length - 200000);
+  updateLive(t);
+  scheduleDraw();
+}
+
+// --------------------------------------------------------------------- UI --
+function fmt(x, dec, unit) { return Number.isFinite(x) ? x.toFixed(dec) + " " + unit : "—"; }
+function fmtDur(sec) {
+  if (!Number.isFinite(sec)) return "—";
+  sec = Math.round(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = sec % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0");
+}
+
+function updateLive(t) {
+  const d = live;
+  $("tV").textContent = fmt(d.v, 3, "V");
+  $("tI").textContent = fmt(d.i, 3, "A");
+  $("tP").textContent = fmt(d.v * d.i, 2, "W");
+  const showTest = RUNNING(d.st) || d.st === 6;
+  $("tMah").textContent = showTest ? fmt(d.mah, 1, "mAh") : "—";
+  $("tWh").textContent = showTest ? fmt(d.mwh / 1000, 3, "Wh") : "—";
+  $("tR").textContent = fmt(d.rint, 1, "mΩ");
+  $("tSoc").textContent = d.st === 0 && Number.isFinite(d.v) ? "~" + Math.round(socFromOcv(d.v)) + " %" : "—";
+  const b = $("stateBadge");
+  b.textContent = (STATES[d.st] || "—") + (RUNNING(d.st) || d.st === 0 ? " · " + MODES[d.mode] : "");
+  b.style.borderColor = d.st === 7 ? "var(--bad)" : RUNNING(d.st) ? "var(--accent)" : "var(--line)";
+  $("elapsed").textContent = RUNNING(d.st) ? "test time " + fmtDur(t - testStartT) : "";
+  updateButtons();
+}
+
+function updateButtons() {
+  const linked = !!(port || demo), st = live.st;
+  const idle = linked && st === 0;
+  document.querySelectorAll("#modeSeg button").forEach(b => {
+    b.classList.toggle("sel", +b.dataset.mode === live.mode);
+    const noCharge = b.dataset.mode === "2" && devCfg.known && !devCfg.charge;
+    b.disabled = !idle || noCharge;
+    b.title = noCharge ? "The TP4056 charges Li-ion / LiPo only" : "";
+  });
+  $("btnStart").disabled = !idle;
+  $("btnStart").textContent = live.mode === 3 ? "Output ON" : "Start test";
+  $("btnRint").disabled = !idle;
+  $("btnStop").disabled = !(linked && (RUNNING(st) || st >= 6));
+  $("btnStop").textContent = st === 8 ? "Output OFF" : RUNNING(st) ? "Abort" : "Back";
+  ["btnLoadOn", "btnLoadOff", "btnCalV", "btnCalI", "btnSaveSet"].forEach(id => $(id).disabled = !idle);
+  $("btnMon").disabled = !linked;
+}
+
+function setConn(cls, text) {
+  $("dot").className = "dot " + cls;
+  $("connText").textContent = text;
+  $("btnConnect").textContent = port ? "Disconnect" : "Connect";
+  $("btnDemo").textContent = demo ? "Stop demo" : "Demo";
+  updateButtons();
+}
+
+function logLine(text, cls) {
+  const c = $("console");
+  const div = document.createElement("div");
+  if (cls) div.className = cls;
+  div.textContent = text;
+  c.appendChild(div);
+  while (c.childNodes.length > 600) c.removeChild(c.firstChild);
+  c.scrollTop = c.scrollHeight;
+}
+
+let toastTimer = 0;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 4000);
+}
+
+// ---------------------------------------------------------------- results --
+function saveResults() {
+  try { localStorage.setItem("ba_results", JSON.stringify(results.slice(0, 500))); } catch (e) {}
+}
+
+function addResult(r) {
+  results.unshift(r);
+  saveResults();
+  renderResults();
+}
+
+function renderResults() {
+  const body = $("resBody");
+  body.innerHTML = "";
+  if (!results.length) {
+    body.innerHTML = '<tr><td colspan="8" class="hint">No results yet.</td></tr>';
+    return;
+  }
+  for (const r of results) {
+    const tr = document.createElement("tr");
+    tr.className = "pick" + (lastResult && lastResult.when === r.when ? " sel" : "");
+    tr.dataset.when = r.when;
+    tr.title = "Show this result";
+    tr.onclick = () => recallResult(r.when);
+    const small = r.type === "OUTPUT";
+    const cells = [new Date(r.when).toLocaleString(), r.type, fmt(r.mah, small ? 1 : 0, "mAh"), fmt(r.mwh / 1000, small ? 3 : 2, "Wh"),
+                   fmtDur(r.sec), fmt(r.rint, 1, "mΩ"), Number.isFinite(r.est) ? "~" + r.est.toFixed(0) + " mAh" : "—", r.reason];
+    for (const c of cells) { const td = document.createElement("td"); td.textContent = c; tr.appendChild(td); }
+    body.appendChild(tr);
+  }
+}
+
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: type || "text/csv" }));
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function stamp() { return new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-"); }
+
+// -------------------------------------------------------------- test result --
+let lastResult = null, prevResultT = -Infinity;
+
+// Completes a finished test's summary from its own readings and shows it.
+// Its readings are the last run of "running" samples, if that run came after the previous result.
+function captureResult(r) {
+  let end = samples.length - 1;
+  while (end >= 0 && !RUNNING(samples[end].st)) end--;
+  let start = end;
+  while (start > 0 && RUNNING(samples[start - 1].st)) start--;
+  const test = end >= 0 && samples[end].t > prevResultT ? samples.slice(start, end + 1) : [];
+  prevResultT = samples.length ? samples[samples.length - 1].t : prevResultT;
+  const dis = test.filter(x => DISCHARGING(x.st));
+  r.vStart = dis.length ? dis[0].v : NaN;
+  r.vEnd = dis.length ? dis[dis.length - 1].v : NaN;
+  r.iAvg = r.sec > 0 ? r.mah / 1000 / (r.sec / 3600) : NaN;
+  r.chem = devCfg.chem; r.cutoff = devCfg.cutoff; r.chemKnown = devCfg.known;
+  r.samples = test.map(x => Object.assign({}, x, { t: x.t - (test.length ? test[0].t : 0) }));
+  const row = results.find(x => x.when === r.when);   // the list entry addResult just made
+  if (row) {
+    Object.assign(row, { vStart: r.vStart, vEnd: r.vEnd, iAvg: r.iAvg, chem: r.chem, cutoff: r.cutoff, chemKnown: r.chemKnown });
+    saveResults();
+  }
+  saveReadings(r.when, r.samples);
+  showResult(r);
+}
+
+function showResult(r) {
+  lastResult = r;
+  renderLastResult();
+  document.querySelectorAll("#resBody tr").forEach(tr => tr.classList.toggle("sel", +tr.dataset.when === r.when));
+  const card = $("resultCard");
+  card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash");
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// Reopens a result from the list, with its readings if they were stored
+async function recallResult(when) {
+  const row = results.find(x => x.when === when);
+  if (!row) return;
+  const r = Object.assign({}, row);
+  r.samples = (await loadReadings(when)) || [];
+  showResult(r);
+}
+
+// ---- readings of each test, kept in IndexedDB (too big for localStorage)
+let dbOpen = null;
+function readingsDb() {
+  if (!dbOpen) dbOpen = new Promise((resolve, reject) => {
+    const q = indexedDB.open("battery-analyzer", 1);
+    q.onupgradeneeded = () => q.result.createObjectStore("readings");
+    q.onsuccess = () => resolve(q.result);
+    q.onerror = () => reject(q.error);
+  });
+  return dbOpen;
+}
+async function saveReadings(when, data) {
+  try { (await readingsDb()).transaction("readings", "readwrite").objectStore("readings").put(data, when); }
+  catch (e) { logLine("# couldn't store this test's readings: " + e.message, "err"); }
+}
+async function loadReadings(when) {
+  try {
+    const db = await readingsDb();
+    return await new Promise(resolve => {
+      const q = db.transaction("readings").objectStore("readings").get(when);
+      q.onsuccess = () => resolve(q.result || null);
+      q.onerror = () => resolve(null);
+    });
+  } catch (e) { return null; }
+}
+async function clearReadings() {
+  try { (await readingsDb()).transaction("readings", "readwrite").objectStore("readings").clear(); } catch (e) {}
+}
+
+// [label, value, big?] rows shared by the card, the report and the CSV
+function resultRows(r) {
+  const rows = [];
+  const kind = r.chemKnown ? CHEMS[r.chem] + ", cutoff " + r.cutoff.toFixed(2) + " V" : "—";
+  if (r.type === "RINT") {
+    rows.push(["Internal resistance", fmt(r.rint, 1, "mΩ"), true]);
+    rows.push(["Open-circuit voltage", fmt(r.voc, 3, "V")]);
+    rows.push(["SoC (from voltage)", Number.isFinite(r.voc) ? "~" + Math.round(socFromOcv(r.voc, r.chemKnown ? r.chem : 0)) + " %" : "—"]);
+    rows.push(["Battery type", kind]);
+    return rows;
+  }
+  const iAvg = Number.isFinite(r.iAvg) ? r.iAvg : r.sec > 0 ? r.mah / 1000 / (r.sec / 3600) : NaN;
+  const capLabel = r.type === "OUTPUT" ? "Used by the device" : r.type === "QUICK" ? "Capacity (estimate)" : "Capacity";
+  const capVal = r.type === "QUICK"
+    ? (Number.isFinite(r.est) ? "~" + r.est.toFixed(0) + " mAh" : "N/A")
+    : fmt(r.mah, r.type === "OUTPUT" ? 1 : 0, "mAh");
+  rows.push([capLabel, capVal, true]);
+  if (r.type === "QUICK") rows.push(["Drained", fmt(r.mah, 1, "mAh")]);
+  rows.push(["Energy", fmt(r.mwh / 1000, 3, "Wh")]);
+  rows.push([r.type === "OUTPUT" ? "Run time" : "Discharge time", fmtDur(r.sec)]);
+  rows.push(["Average current", fmt(r.type === "OUTPUT" && Number.isFinite(r.avg) ? r.avg : iAvg, 3, "A")]);
+  if (r.type === "OUTPUT") {
+    rows.push(["Minimum current", fmt(r.min, 3, "A")]);
+    rows.push(["Maximum current", fmt(r.max, 3, "A")]);
+  } else {
+    rows.push(["Internal resistance", fmt(r.rint, 1, "mΩ")]);
+  }
+  rows.push([r.type === "OUTPUT" ? "Battery voltage at start" : "Voltage at start (loaded)", fmt(r.vStart, 3, "V")]);
+  rows.push([r.type === "OUTPUT" ? "Battery voltage at end" : "Voltage at end (loaded)", fmt(r.vEnd, 3, "V")]);
+  rows.push(["How it ended", r.reason.split(" · ")[0]]);
+  rows.push(["Battery type", kind]);
+  return rows;
+}
+
+function renderLastResult() {
+  const r = lastResult;
+  if (!r) return;
+  $("resultCard").hidden = false;
+  $("resWhen").textContent = r.type + " · " + new Date(r.when).toLocaleString();
+  const box = $("resTiles");
+  box.innerHTML = "";
+  for (const [k, v, big] of resultRows(r)) {
+    const t = document.createElement("div");
+    t.className = "tile" + (big ? " big" : k === "How it ended" || k === "Battery type" ? " wide" : "");
+    const kk = document.createElement("div"); kk.className = "k"; kk.textContent = k;
+    const vv = document.createElement("div"); vv.className = big ? "v" : "v s"; vv.textContent = v;
+    t.append(kk, vv);
+    box.appendChild(t);
+  }
+}
+
+function esc(x) {
+  return String(x).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+}
+
+// Draws one chart tab for the given readings in light colours and returns it as a PNG data URL.
+function chartImage(which, data) {
+  const keep = { tab, samples, hoverX };
+  tab = which; samples = data; hoverX = null; forceLight = true;
+  draw();
+  const url = canvas.toDataURL("image/png");
+  tab = keep.tab; samples = keep.samples; hoverX = keep.hoverX; forceLight = false;
+  draw();
+  return url;
+}
+
+function exportReport() {
+  const r = lastResult;
+  if (!r) return;
+  const rows = resultRows(r).map(([k, v]) => "<tr><th>" + esc(k) + "</th><td>" + esc(v) + "</td></tr>").join("");
+  const charts = r.type === "RINT" ? [] : [["V & I vs time", "time"]];
+  if (r.samples.some(x => DISCHARGING(x.st))) charts.push(["Voltage vs capacity", "cap"]);
+  if (r.type === "OUTPUT") charts.push(["V–I curve", "vi"]);
+  const imgs = r.type === "RINT" ? "" : r.samples.length
+    ? charts.map(([title, t]) => "<h2>" + esc(title) + "</h2><img alt='" + esc(title) + "' src='" + chartImage(t, r.samples) + "'>").join("")
+    : "<p>No readings are stored for this test (the PC wasn't connected during it, or it was saved by an older version).</p>";
+  const title = "Battery test report: " + r.type + ", " + new Date(r.when).toLocaleString();
+  const html = "<!doctype html><html lang='en'><head><meta charset='utf-8'><title>" + esc(title) + "</title>" +
+    "<style>body{font:14px/1.45 'Segoe UI',system-ui,sans-serif;color:#1d2330;max-width:900px;margin:24px auto;padding:0 16px}" +
+    "h1{font-size:22px;margin-bottom:4px}h2{font-size:16px;margin-top:26px}.sub{color:#6a7282;margin-top:0}" +
+    "table{border-collapse:collapse;min-width:420px}th,td{text-align:left;padding:6px 12px;border-bottom:1px solid #dde1e8}" +
+    "th{color:#6a7282;font-weight:600}img{max-width:100%;border:1px solid #dde1e8;border-radius:8px}" +
+    "@media print{h2{break-before:auto}img{break-inside:avoid}}</style></head><body>" +
+    "<h1>Battery test report</h1><p class='sub'>" + esc(r.type + " test, finished " + new Date(r.when).toLocaleString()) + "</p>" +
+    "<table>" + rows + "</table>" + imgs +
+    "<p class='sub' style='margin-top:24px'>Battery Analyzer · " + r.samples.length + " readings</p></body></html>";
+  download("battery-report-" + r.type.toLowerCase().replace(/\W+/g, "") + "-" + stamp() + ".html", html, "text/html");
+}
+
+function exportResultCsv() {
+  const r = lastResult;
+  if (!r) return;
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const lines = ["Battery test result", "test," + q(r.type), "finished," + q(new Date(r.when).toISOString())];
+  for (const [k, v] of resultRows(r)) lines.push(q(k) + "," + q(v));
+  lines.push("", "t_s,V,A,mAh,mWh,state");
+  for (const x of r.samples) lines.push([x.t.toFixed(1), x.v, x.i, x.mah, x.mwh, STATES[x.st]].join(","));
+  download("battery-result-" + r.type.toLowerCase().replace(/\W+/g, "") + "-" + stamp() + ".csv", lines.join("\n"));
+}
+
+// ------------------------------------------------------------------ chart --
+const canvas = $("chart"), ctx = canvas.getContext("2d");
+let hoverX = null, drawPending = false;
+
+let forceLight = false;   // exported charts always use light colours
+const LIGHT = { "--v": "#2563eb", "--i": "#d9480f", "--grid": "#e8ebf0", "--muted": "#6a7282",
+                "--line": "#dde1e8", "--panel": "#ffffff", "--ink": "#1d2330" };
+function css(name) {
+  if (forceLight && LIGHT[name]) return LIGHT[name];
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function niceTicks(lo, hi, n) {
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { lo: 0, hi: 1, step: 0.2 };
+  if (hi - lo < 1e-9) { lo -= 0.5; hi += 0.5; }
+  const raw = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+  return { lo: Math.floor(lo / step) * step, hi: Math.ceil(hi / step) * step, step };
+}
+
+function range(arr, pad) {
+  let lo = Infinity, hi = -Infinity;
+  for (const x of arr) if (Number.isFinite(x)) { if (x < lo) lo = x; if (x > hi) hi = x; }
+  if (lo === Infinity) return [0, 1];
+  const p = (hi - lo) * (pad || 0);
+  return [lo - p, hi + p];
+}
+
+function decimate(pts, max) {
+  if (pts.length <= max) return pts;
+  const step = pts.length / max, out = [];
+  for (let k = 0; k < pts.length; k += step) out.push(pts[Math.floor(k)]);
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+function scheduleDraw() {
+  if (drawPending) return;
+  drawPending = true;
+  requestAnimationFrame(() => { drawPending = false; draw(); });
+}
+
+function chartData() {
+  if (tab === "time") {
+    const xs = samples.map(s => s.t / 60);
+    return {
+      xLabel: "time (min)",
+      series: [
+        { name: "V", unit: "V", color: css("--v"), axis: 0, pts: samples.map((s, k) => [xs[k], s.v]) },
+        { name: "I", unit: "A", color: css("--i"), axis: 1, pts: samples.map((s, k) => [xs[k], s.i]) },
+      ],
+    };
+  }
+  if (tab === "cap") {
+    const d = samples.filter(s => DISCHARGING(s.st));
+    return {
+      xLabel: "capacity (mAh)",
+      series: [{ name: "V", unit: "V", color: css("--v"), axis: 0, pts: d.map(s => [s.mah, s.v]) }],
+    };
+  }
+  // V-I: every sample as a point; load steps (current jumps between two readings) as
+  // segments. A step's slope -dV/dI is the cell's internal resistance at that moment.
+  const steps = [];
+  for (let k = 1; k < samples.length; k++) {
+    const a = samples[k - 1], b = samples[k], di = b.i - a.i;
+    if (Math.abs(di) > 0.1 && b.t - a.t < 60 && Number.isFinite(a.v) && Number.isFinite(b.v))
+      steps.push({ p: [[a.i, a.v], [b.i, b.v]], r: -(b.v - a.v) / di });
+  }
+  return {
+    xLabel: "current (A)", scatter: true,
+    series: [{ name: "V", unit: "V", color: css("--v"), axis: 0, pts: samples.map(s => [s.i, s.v]) }],
+    steps,
+  };
+}
+
+function draw() {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const cd = chartData();
+  const two = cd.series.some(s => s.axis === 1);
+  const L = 58, R = two ? 58 : 16, T = 14, B = 40, pw = W - L - R, ph = H - T - B;
+  ctx.font = "12px Segoe UI, system-ui, sans-serif";
+
+  const all = cd.series.flatMap(s => s.pts);
+  if (!all.length) {
+    ctx.fillStyle = css("--muted");
+    ctx.textAlign = "center";
+    ctx.fillText(tab === "cap" ? "No discharge data yet." : "No data yet. Connect, or try Demo.", W / 2, H / 2);
+    $("chartInfo").textContent = "";
+    return;
+  }
+  const xr = range(all.map(p => p[0]));
+  const xt = niceTicks(xr[0], xr[1], Math.max(3, Math.floor(pw / 90)));
+  const yt = [0, 1].map(ax => {
+    const pts = cd.series.filter(s => s.axis === ax).flatMap(s => s.pts.map(p => p[1]));
+    const r = range(pts, 0.05);
+    return niceTicks(r[0], r[1], Math.max(3, Math.floor(ph / 60)));
+  });
+  const X = x => L + (x - xt.lo) / (xt.hi - xt.lo) * pw;
+  const Y = (y, ax) => T + ph - (y - yt[ax].lo) / (yt[ax].hi - yt[ax].lo) * ph;
+
+  // grid + axes
+  ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1; ctx.fillStyle = css("--muted");
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for (let x = xt.lo; x <= xt.hi + xt.step / 2; x += xt.step) {
+    const px = Math.round(X(x)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(px, T); ctx.lineTo(px, T + ph); ctx.stroke();
+    ctx.fillText(+x.toFixed(6) + "", px, T + ph + 6);
+  }
+  ctx.fillText(cd.xLabel, L + pw / 2, T + ph + 22);
+  ctx.textBaseline = "middle";
+  for (let ax = 0; ax < (two ? 2 : 1); ax++) {
+    const s = cd.series.find(q => q.axis === ax);
+    ctx.textAlign = ax ? "left" : "right";
+    for (let y = yt[ax].lo; y <= yt[ax].hi + yt[ax].step / 2; y += yt[ax].step) {
+      const py = Math.round(Y(y, ax)) + 0.5;
+      if (!ax) { ctx.strokeStyle = css("--grid"); ctx.beginPath(); ctx.moveTo(L, py); ctx.lineTo(L + pw, py); ctx.stroke(); }
+      ctx.fillStyle = s.color;
+      ctx.fillText(+y.toFixed(4) + "", ax ? L + pw + 6 : L - 6, py);
+    }
+    ctx.save();
+    ctx.translate(ax ? W - 10 : 12, T + ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.fillText(s.name + " (" + s.unit + ")", 0, 0);
+    ctx.restore();
+  }
+
+  // data
+  ctx.save();
+  ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
+  for (const s of cd.series) {
+    const pts = decimate(s.pts, Math.max(500, pw * 2));
+    ctx.strokeStyle = ctx.fillStyle = s.color;
+    if (cd.scatter) {
+      ctx.globalAlpha = 0.6;
+      for (const [x, y] of pts) if (Number.isFinite(y)) { ctx.beginPath(); ctx.arc(X(x), Y(y, s.axis), 2.2, 0, 7); ctx.fill(); }
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.lineWidth = 1.8; ctx.beginPath();
+      let pen = false;
+      for (const [x, y] of pts) {
+        if (!Number.isFinite(y)) { pen = false; continue; }
+        pen ? ctx.lineTo(X(x), Y(y, s.axis)) : ctx.moveTo(X(x), Y(y, s.axis));
+        pen = true;
+      }
+      ctx.stroke();
+    }
+  }
+  if (cd.steps) {
+    ctx.strokeStyle = ctx.fillStyle = css("--i"); ctx.lineWidth = 2;
+    const labelled = [];
+    for (const s of cd.steps) {
+      const [[x0, y0], [x1, y1]] = s.p;
+      ctx.beginPath(); ctx.moveTo(X(x0), Y(y0, 0)); ctx.lineTo(X(x1), Y(y1, 0)); ctx.stroke();
+      const lx = X((x0 + x1) / 2) + 4, ly = Y((y0 + y1) / 2, 0) - 2;
+      if (labelled.some(([ax, ay]) => Math.abs(ax - lx) < 60 && Math.abs(ay - ly) < 16)) continue;
+      labelled.push([lx, ly]);
+      ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+      ctx.fillText((s.r * 1000).toFixed(0) + " mΩ", lx, ly);
+    }
+  }
+  ctx.restore();
+  ctx.strokeStyle = css("--line"); ctx.strokeRect(L + 0.5, T + 0.5, pw, ph);
+
+  // info line
+  let info = samples.length + " samples";
+  if (cd.steps) {
+    const rs = cd.steps.map(s => s.r * 1000).filter(r => r > 0).sort((a, b) => a - b);
+    info += rs.length
+      ? " · " + rs.length + " load steps, median R = " + rs[Math.floor(rs.length / 2)].toFixed(1) + " mΩ (slope of each step)"
+      : " · load steps (test start/stop, Load on/off) show up as orange segments; their slope is the internal resistance";
+  }
+  if (tab === "cap") info += " · discharge points only";
+  $("chartInfo").textContent = info;
+
+  // hover readout
+  if (hoverX !== null && hoverX >= L && hoverX <= L + pw) {
+    const xv = xt.lo + (hoverX - L) / pw * (xt.hi - xt.lo);
+    const lines = [];
+    let px = hoverX;
+    for (const s of cd.series) {
+      let best = null, bd = Infinity;
+      for (const p of s.pts) { const dd = Math.abs(p[0] - xv); if (dd < bd) { bd = dd; best = p; } }
+      if (!best) continue;
+      px = X(best[0]);
+      ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(px, Y(best[1], s.axis), 4, 0, 7); ctx.fill();
+      lines.push(s.name + " " + best[1].toFixed(3) + " " + s.unit);
+      if (!lines.xs) lines.unshift(cd.xLabel.split(" ")[0] + " " + (+best[0].toFixed(3)));
+      lines.xs = true;
+    }
+    ctx.strokeStyle = css("--muted"); ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(px + 0.5, T); ctx.lineTo(px + 0.5, T + ph); ctx.stroke(); ctx.setLineDash([]);
+    const bw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16, bh = lines.length * 16 + 10;
+    const bx = px + bw + 12 > L + pw ? px - bw - 10 : px + 10;
+    ctx.fillStyle = css("--panel"); ctx.strokeStyle = css("--line");
+    ctx.fillRect(bx, T + 8, bw, bh); ctx.strokeRect(bx + 0.5, T + 8.5, bw, bh);
+    ctx.fillStyle = css("--ink"); ctx.textAlign = "left"; ctx.textBaseline = "top";
+    lines.forEach((l, k) => ctx.fillText(l, bx + 8, T + 14 + k * 16));
+  }
+}
+
+canvas.addEventListener("mousemove", e => { hoverX = e.offsetX; scheduleDraw(); });
+canvas.addEventListener("mouseleave", () => { hoverX = null; scheduleDraw(); });
+window.addEventListener("resize", scheduleDraw);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", scheduleDraw);
+
+// ------------------------------------------------------------------- demo --
+// Simulated cell: 2600 mAh, 60 mOhm, 3.9 ohm load, 40 mA electronics; time runs 60x faster.
+function startDemo() {
+  if (port) return;
+  const sim = {
+    ms: 0, st: 0, mode: 1, soc: 92, rint: 0.060, load: false, chg: false, mah: 0, mwh: 0,
+    t0: 0, ocv1: NaN, lastR: NaN, capMah: 2600, speed: 60, chem: 0, cut: 3.0,
+    ocv() {
+      if (this.soc < 0) return OCV[0] + this.soc * 0.08;     // steep knee when empty
+      const x = Math.min(100, this.soc) / 5, k = Math.min(19, Math.floor(x));
+      return OCV[k] + (OCV[k + 1] - OCV[k]) * (x - k);
+    },
+    iNow() {
+      let i = 0.04;
+      if (this.st === 8) i += this.dev = 0.12 + (Math.random() < 0.15 ? 0.25 + Math.random() * 0.2 : Math.random() * 0.02);
+      else if (this.load) i += this.ocv() / (3.9 + this.rint);
+      if (this.chg) i -= this.soc < 95 ? 0.95 : 0.95 * (100 - this.soc) / 5;
+      return i;
+    },
+    emit(line) { setTimeout(() => handleLine(line), 0); },
+    result(reason, est) {
+      this.load = false;
+      const end = this.st === 2 ? this.tRest : this.ms;     // quick mode: drain time only
+      this.emit(["R", this.mode, this.mah.toFixed(1), this.mwh.toFixed(1), Math.round((end - this.t0) / 1000),
+                 (this.lastR * 1000).toFixed(1), Number.isFinite(est) ? est.toFixed(0) : "nan", reason].join(","));
+      this.st = 6;
+      if (this.mode === 3) {
+        const h = (end - this.t0) / 3600000;
+        this.emit(["O", (this.mah / 1000 / h).toFixed(4), this.imin.toFixed(4), this.imax.toFixed(4)].join(","));
+      }
+    },
+    settings() {
+      const c = CHEM_CUT[this.chem];
+      this.emit(["S", this.chem, Math.round(this.cut * 1000), c[1] * 1000, c[2] * 1000, this.chem === 0 ? 1 : 0].join(","));
+    },
+    rintTest() {
+      this.lastR = this.rint * (1 + (Math.random() - 0.5) * 0.04);
+      return this.lastR;
+    },
+    command(c) {
+      const k = c.trim()[0], arg = parseFloat(c.trim().slice(1));
+      if (k === "g") this.settings();
+      else if (k === "c" && this.st === 0 && arg >= 0 && arg <= 2) { this.chem = arg; this.cut = CHEM_CUT[arg][0]; this.settings(); }
+      else if (k === "u" && this.st === 0) {
+        if (arg >= CHEM_CUT[this.chem][1] && arg <= CHEM_CUT[this.chem][2]) { this.cut = arg; this.settings(); }
+        else this.emit("# cutoff out of range for this chemistry");
+      }
+      else if (k === "p" && this.st === 0 && Number.isFinite(arg)) this.mode = Math.max(0, Math.min(3, arg));
+      else if (k === "s" && this.st === 0) {
+        if (Number.isFinite(arg)) this.mode = Math.max(0, Math.min(3, arg));
+        this.mah = this.mwh = 0; this.t0 = this.ms; this.ocv1 = this.ocv();
+        if (this.mode === 3) { this.st = 8; this.lastR = NaN; this.imin = 1e9; this.imax = -1e9; return; }
+        this.rintTest();
+        if (this.mode === 2 && this.chem !== 0) { this.st = 7; this.emit("# ERROR: TP4056: Li-ion"); return; }
+        if (this.mode === 2) { this.st = 3; this.chg = true; } else { this.st = this.mode === 0 ? 1 : 5; this.load = true; }
+      } else if (k === "x") {
+        if (this.st === 8) this.result("Stopped", NaN);
+        else if (this.st === 1 || this.st === 5) this.result("Aborted", NaN);
+        else if (RUNNING(this.st)) { this.load = this.chg = false; this.st = 7; this.emit("# ERROR: Aborted"); }
+        else this.st = 0;
+      } else if (k === "r" && this.st === 0) {
+        const r = this.rintTest();
+        this.emit("K," + (r * 1000).toFixed(1) + "," + this.ocv().toFixed(4));
+      } else if (k === "l" && this.st === 0) { this.load = arg > 0.5; this.emit(this.load ? "# load ON (60 s)" : "# load off"); }
+      else if (k === "v" || k === "i") { this.emit("#define V_CAL 1.00000f"); this.emit("#define I_CAL 1.00000f"); }
+      else if (k === "?") { this.emit("# s [n]=start  x=abort/back  r=Rint  p <n>=mode  t <ms>=telemetry"); this.emit("# c <n>=chemistry  u <V>=cutoff  g=settings (saved on the chip)"); }
+      else if (k !== "t" && k !== "m") this.emit("# only on the idle screen");
+    },
+    tick() {
+      const dt = 1000 * this.speed / 5;          // 5 ticks per real second
+      const i = this.iNow();
+      if (this.soc > -4 || i < 0) this.soc -= i * 1000 * dt / 3600000 / this.capMah * 100;
+      this.ms += dt;
+      const v = this.ocv() - i * this.rint + (Math.random() - 0.5) * 0.002;
+      if (this.st === 8) {
+        const d = i - 0.04;
+        this.mah += d * 1000 * dt / 3600000; this.mwh += d * v * 1000 * dt / 3600000;
+        this.imin = Math.min(this.imin, d); this.imax = Math.max(this.imax, d);
+        if (v < this.cut) this.result("Cutoff reached", NaN);
+      } else if (this.st === 1 || this.st === 5) {
+        this.mah += i * 1000 * dt / 3600000; this.mwh += i * v * 1000 * dt / 3600000;
+        if (v < this.cut) this.result("Cutoff reached", NaN);
+        else if (this.st === 1) {
+          // adaptive quick drain: until the resting voltage has dropped 60 mV (1 to 30 min)
+          const t = this.ms - this.t0, drop = this.ocv1 - this.ocv();
+          if ((t >= 60000 && drop >= 0.06) || t >= 1800000) { this.load = false; this.st = 2; this.tRest = this.ms; }
+        }
+      } else if (this.st === 2 && this.ms - this.tRest >= 180000) {
+        const ocv2 = this.ocv(), d = socFromOcv(this.ocv1, 0) - socFromOcv(ocv2, 0), dv = (this.ocv1 - ocv2) * 1000;
+        this.result(d < 3 ? "dSoC too small" : dv >= 50 ? "Approx +-5%" : dv >= 30 ? "Approx +-10%" : "Low confidence",
+                    d >= 3 ? this.mah / (d / 100) : NaN);
+      } else if (this.st === 3 && this.soc >= 99.5) { this.chg = false; this.st = 4; this.tRest = this.ms; }
+      else if (this.st === 4 && this.ms - this.tRest >= 600000) {
+        this.rintTest(); this.mah = this.mwh = 0; this.t0 = this.ms; this.st = 5; this.load = true;
+      }
+      const rint = this.lastR * 1000;
+      handleLine(["D", Math.round(this.ms), this.st, this.mode, v.toFixed(4), (this.st === 8 ? i - 0.04 : i).toFixed(4),
+                  this.mah.toFixed(2), this.mwh.toFixed(1), Number.isFinite(rint) ? rint.toFixed(1) : "nan"].join(","));
+    },
+  };
+  demo = sim;
+  samples = []; tOffset = 0; lastMs = -1;
+  sim.timer = setInterval(() => sim.tick(), 200);
+  sim.settings();
+  logLine("# Demo: simulated 2600 mAh cell, time runs 60x faster");
+  setConn("demo", "Demo (simulated)");
+}
+
+function stopDemo() {
+  if (!demo) return;
+  clearInterval(demo.timer);
+  demo = null;
+  live.st = -1;
+  setConn("", "Not connected");
+}
+
+// ----------------------------------------------------------------- wiring --
+$("btnConnect").onclick = connect;
+$("btnHelp").onclick = () => $("help").showModal();
+$("btnHelpClose").onclick = () => $("help").close();
+$("help").addEventListener("click", e => { if (e.target === $("help")) $("help").close(); });   // click outside
+document.addEventListener("keydown", e => { if (e.key === "F1") { e.preventDefault(); $("help").showModal(); } });
+document.querySelectorAll(".toc a").forEach(a => (a.onclick = e => {
+  e.preventDefault();
+  document.querySelector(a.getAttribute("href")).scrollIntoView({ behavior: "smooth" });
+}));
+$("btnDemo").onclick = () => (demo ? stopDemo() : startDemo());
+document.querySelectorAll("#modeSeg button").forEach(b => (b.onclick = () => send("p " + b.dataset.mode)));
+$("btnStart").onclick = () => send("s " + live.mode);
+$("btnRint").onclick = () => send("r");
+$("btnStop").onclick = () => send("x");
+$("btnLoadOn").onclick = () => send("l 1");
+$("btnLoadOff").onclick = () => send("l 0");
+$("btnMon").onclick = () => send("m");
+$("btnCalV").onclick = () => { const v = parseFloat($("calV").value); if (v > 0) send("v " + v); else toast("Enter the meter voltage"); };
+$("btnCalI").onclick = () => { const v = parseFloat($("calI").value); if (v > 0) send("i " + v); else toast("Enter the meter current"); };
+$("btnSaveSet").onclick = saveSettings;
+$("btnCopyCal").onclick = () => navigator.clipboard.writeText($("calOut").textContent).then(() => toast("Copied"));
+$("btnSend").onclick = () => { const c = $("cmd").value.trim(); if (c) { send(c); $("cmd").value = ""; } };
+$("cmd").addEventListener("keydown", e => { if (e.key === "Enter") $("btnSend").click(); });
+document.querySelectorAll("#tabs button").forEach(b => (b.onclick = () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("sel", x === b));
+  scheduleDraw();
+}));
+$("btnClear").onclick = () => { samples = []; scheduleDraw(); };
+$("btnCsv").onclick = () => {
+  const rows = ["t_s,V,A,mAh,mWh,state"].concat(samples.map(s =>
+    [s.t.toFixed(1), s.v, s.i, s.mah, s.mwh, STATES[s.st]].join(",")));
+  download("battery-" + stamp() + ".csv", rows.join("\n"));
+};
+$("btnPng").onclick = () => {
+  const a = document.createElement("a");
+  a.href = canvas.toDataURL("image/png");
+  a.download = "battery-" + tab + "-" + stamp() + ".png";
+  a.click();
+};
+$("btnReport").onclick = exportReport;
+$("btnResultCsv").onclick = exportResultCsv;
+$("btnResCsv").onclick = () => {
+  const rows = ["time,test,mAh,mWh,seconds,rint_mOhm,estimate_mAh,end"].concat(results.map(r =>
+    [new Date(r.when).toISOString(), r.type, r.mah, r.mwh, r.sec, r.rint, r.est, '"' + r.reason + '"'].join(",")));
+  download("results-" + stamp() + ".csv", rows.join("\n"));
+};
+$("btnResClear").onclick = () => {
+  if (!confirm("Delete all saved results?")) return;
+  results = [];
+  try { localStorage.removeItem("ba_results"); } catch (e) {}
+  clearReadings();
+  lastResult = null;
+  $("resultCard").hidden = true;
+  renderResults();
+};
+if ("serial" in navigator) navigator.serial.addEventListener("disconnect", e => { if (e.target === port) disconnect(); });
+
+renderResults();
+updateButtons();
+scheduleDraw();
+if (!("serial" in navigator))
+  logLine("# Web Serial is not available in this browser. Use Chrome or Edge. Demo mode still works.", "err");
+</script>
+</body>
+</html>
