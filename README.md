@@ -17,6 +17,8 @@ It measures a single Li-ion cell through a 0.02 Ω shunt in the cell's minus lea
 | Discharge curve (voltage vs capacity) | QUICK test: adaptive drain, rest, estimate |
 |---|---|
 | ![Voltage vs capacity chart of a full discharge](docs/images/app-discharge-curve.png) | ![QUICK test result with capacity estimate](docs/images/app-quick-test.png) |
+| **Battery settings, calibration and firmware update** (flash a Pro Mini without VS Code) | **Built-in operation manual** (Help or F1) |
+| ![Calibration and settings panel next to the firmware update panel](docs/images/app-settings-firmware.png) | ![Operation manual open in the app](docs/images/app-help.png) |
 
 **Try the app without hardware:** download `tools/BatteryAnalyzer.html`, open it in Chrome or Edge, and click **Demo**. A simulated cell runs 60× faster. You can also open `BatteryAnalyzer.html#demo&run=1&mode=1` to start a FULL test straight away. The screenshots come from that demo; regenerate them with `docs/screenshots.ps1`.
 

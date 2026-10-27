@@ -21,3 +21,5 @@ function Shot($name, $size, $hash) {
 Shot "app-full-test.png"       "1400,1215" "demo&run=1&mode=1&speed=1500&hold=1"
 Shot "app-discharge-curve.png" "1400,640"  "demo&run=1&mode=1&speed=1500&hold=1&tab=cap"
 Shot "app-quick-test.png"      "1400,1215" "demo&run=1&mode=0&speed=300&hold=1"
+Shot "app-help.png"            "1400,900"  "open=help"
+Shot "app-settings-firmware.png" "792,566" "demo&open=settings,fw&only"

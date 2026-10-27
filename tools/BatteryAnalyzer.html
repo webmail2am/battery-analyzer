@@ -158,7 +158,7 @@ dialog#help::backdrop { background: rgba(0, 0, 0, .45); }
       </div>
     </div>
 
-    <details class="card">
+    <details class="card" id="calCard">
       <summary>Calibration &amp; settings</summary>
       <h2 style="margin-top:4px">Battery settings (saved on the analyzer)</h2>
       <div class="row">
@@ -1610,8 +1610,21 @@ if (!("serial" in navigator))
 // Link options for demos and screenshots, e.g. BatteryAnalyzer.html#demo&run=1&mode=0&speed=600&tab=cap
 //   demo: start the demo   run: start a test   mode: 0 QUICK 1 FULL 2 CHG+DIS 3 OUTPUT
 //   speed: demo time factor (default 60)   tab: time | cap | vi   hold: pause the demo at the result
+//   open: settings,fw,help (panels / manual to open, e.g. #open=fw)   noscroll: don't scroll to them   only: show nothing but those panels
 (function linkOptions() {
   const o = new URLSearchParams(location.hash.slice(1));
+  const open = (o.get("open") || "").split(",");
+  const panels = [["settings", "calCard"], ["fw", "fwCard"]].filter(([k]) => open.includes(k)).map(([, id]) => $(id));
+  panels.forEach(p => { p.open = true; });
+  if (o.has("only") && panels.length) {
+    // show just these panels side by side (used for README screenshots)
+    const box = document.createElement("div");
+    box.style.cssText = "display:flex;gap:20px;align-items:flex-start;padding:16px;width:" + (panels.length * 380) + "px";
+    panels.forEach(p => { p.style.flex = "1"; p.style.margin = "0"; box.appendChild(p); });
+    document.querySelectorAll("header, main, footer").forEach(e => { e.style.display = "none"; });
+    document.body.prepend(box);
+  } else if (panels.length && !o.has("noscroll")) setTimeout(() => window.scrollTo(0, panels[0].getBoundingClientRect().top + window.scrollY - 70), 300);
+  if (open.includes("help")) $("help").showModal();
   if (!o.has("demo")) return;
   startDemo();
   const tabBtn = document.querySelector('#tabs button[data-tab="' + o.get("tab") + '"]');
