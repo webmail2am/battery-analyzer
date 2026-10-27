@@ -289,4 +289,4 @@ There's no automatic zero offset: with the analyzer powered from the cell, some 
 - Firmware, PC software and documentation were developed with the help of an AI assistant (Claude).
 
 ## License
-[MIT](LICENSE) © 2026 Ashoka Munasinghe
+[MIT](LICENSE) © 2026 Ashoka Munasinghe · [www.electronics.lk](https://www.electronics.lk)

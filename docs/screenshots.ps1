@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Ashoka Munasinghe. MIT License, see LICENSE.
+# Copyright (c) 2026 Ashoka Munasinghe, www.electronics.lk. MIT License, see LICENSE.
 # SPDX-License-Identifier: MIT
 # Regenerates the README screenshots of the PC app (docs/images/*.png) with headless
 # Microsoft Edge, using the app's built-in demo. Run from PowerShell:
