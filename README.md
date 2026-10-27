@@ -3,6 +3,22 @@
 3.3 V Pro Mini (LGT8F328P clone or original ATmega328P / 8 MHz) + AD7705 16-bit ADC + 0.96" 128x64 I2C OLED (SSD1306, yellow/blue).
 It measures a single Li-ion cell through a 0.02 Ω shunt in the cell's minus lead. The analyzer runs from the cell under test (5 V boost + 3.3 V regulator), so its own current is measured too.
 
+![PC app after a full discharge test: live readings, test result, voltage and current chart, results list](docs/images/app-full-test.png)
+
+**What it does**
+- **Capacity:** full discharge to a cutoff voltage you set (mAh, Wh, time, average current), or charge-then-discharge with a TP4056.
+- **QUICK estimate:** in about 5–45 minutes, from the change in resting voltage, rated ±5 % / ±10 % / low confidence.
+- **Internal resistance:** at the press of a button.
+- **OUTPUT mode:** powers a device from the cell and logs its current, power and energy.
+- **Battery types:** Li-ion / LiPo, LiHV and LiFePO4, with cutoff stored on the chip.
+- **Portable PC app:** [`tools/BatteryAnalyzer.html`](tools/BatteryAnalyzer.html), one file with nothing to install. Live charts, test results, HTML reports and CSV export over USB serial in Chrome or Edge.
+
+| Discharge curve (voltage vs capacity) | QUICK test: adaptive drain, rest, estimate |
+|---|---|
+| ![Voltage vs capacity chart of a full discharge](docs/images/app-discharge-curve.png) | ![QUICK test result with capacity estimate](docs/images/app-quick-test.png) |
+
+**Try the app without hardware:** download `tools/BatteryAnalyzer.html`, open it in Chrome or Edge, and click **Demo**. A simulated cell runs 60× faster. You can also open `BatteryAnalyzer.html#demo&run=1&mode=1` to start a FULL test straight away. The screenshots come from that demo; regenerate them with `docs/screenshots.ps1`.
+
 ## Build in VS Code
 
 1. Install the **PlatformIO IDE** extension (VS Code will suggest it).

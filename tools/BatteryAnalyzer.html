@@ -1372,6 +1372,32 @@ updateButtons();
 scheduleDraw();
 if (!("serial" in navigator))
   logLine("# Web Serial is not available in this browser. Use Chrome or Edge. Demo mode still works.", "err");
+
+// Link options for demos and screenshots, e.g. BatteryAnalyzer.html#demo&run=1&mode=0&speed=600&tab=cap
+//   demo: start the demo   run: start a test   mode: 0 QUICK 1 FULL 2 CHG+DIS 3 OUTPUT
+//   speed: demo time factor (default 60)   tab: time | cap | vi   hold: pause the demo at the result
+(function linkOptions() {
+  const o = new URLSearchParams(location.hash.slice(1));
+  if (!o.has("demo")) return;
+  startDemo();
+  const tabBtn = document.querySelector('#tabs button[data-tab="' + o.get("tab") + '"]');
+  if (tabBtn) tabBtn.click();
+  if (o.has("run")) setTimeout(() => {
+    send("s " + (+o.get("mode") || 0));
+    if (demo) demo.speed = +o.get("speed") || 60;
+  }, 400);
+  if (o.has("hold")) {
+    let n = -1;   // pause one reading after the result, so the live tiles show the idle values
+    const t = setInterval(() => {
+      if (!demo || live.st !== 6) return;
+      if (n < 0) n = samples.length;
+      else if (samples.length > n) {
+        clearInterval(demo.timer); clearInterval(t);
+        setTimeout(() => window.scrollTo(0, 0), 800);
+      }
+    }, 20);
+  }
+})();
 </script>
 </body>
 </html>
