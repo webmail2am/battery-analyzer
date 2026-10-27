@@ -12,6 +12,7 @@ It measures a single Li-ion cell through a 0.02 Ω shunt in the cell's minus lea
 - **OUTPUT mode:** powers a device from the cell and logs its current, power and energy.
 - **Battery types:** Li-ion / LiPo, LiHV and LiFePO4, with cutoff stored on the chip.
 - **Portable PC app:** [`tools/BatteryAnalyzer.html`](tools/BatteryAnalyzer.html), one file with nothing to install. Live charts, test results, HTML reports and CSV export over USB serial in Chrome or Edge.
+- **Flash the firmware from the PC app:** no VS Code or compiler needed; the firmware for both boards is built in.
 
 | Discharge curve (voltage vs capacity) | QUICK test: adaptive drain, rest, estimate |
 |---|---|
@@ -182,6 +183,21 @@ Limits: the device sees the cell voltage (4.2 → 3.0 V). Below ~20 mA the readi
 - **Console:** all device messages, plus a box for typing commands.
 
 > **Connecting resets the board.** Opening the COM port toggles DTR, which restarts the Pro Mini like an upload does. Connect *before* starting a long test. To connect mid-test without a reset, leave the adapter's DTR wire unconnected; you then press reset by hand when uploading.
+
+### Flashing a board from the PC app (no VS Code)
+The PC app carries the compiled firmware for both boards and can flash a Pro Mini by itself through the USB-serial adapter. It speaks the Arduino bootloader protocol (STK500v1 at 57600 baud, like `avrdude -c arduino`).
+
+1. Wire the adapter including **DTR**, at 3.3 V, and close other serial monitors.
+2. Open **Firmware update**, choose the board (**LGT8F328P** or **ATmega328P 3.3 V / 8 MHz**), and keep **Bundled firmware**, or pick a `.hex` file.
+3. Click **Flash firmware** and pick the COM port. The app resets the board, writes and verifies every page, and reconnects at the board's baud rate.
+
+**Without DTR:** press reset when "Resetting the board…" appears.
+
+**Blank chips:** a new Pro Mini already has its bootloader. A truly blank ATmega328P needs the bootloader burned once with an ISP programmer.
+
+**Stored settings** (battery type, cutoff) are kept.
+
+**After changing the firmware**, refresh the bundled copies with `python tools/embed_firmware.py`. It builds both environments and writes their `.hex` files into `BatteryAnalyzer.html`, labelled with the date and Git version.
 
 ### Serial protocol
 
